@@ -14,7 +14,8 @@
     ],
     "require": {
         "yiisoft/yii2": "*",
-        "php": ">=7.4.0"
+        "php": ">=7.4.0",
+        "prowebcraft/dot": "dev-master"
     },
     "autoload": {
         "psr-4": {
