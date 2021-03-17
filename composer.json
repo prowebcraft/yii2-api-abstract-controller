@@ -1,0 +1,24 @@
+{
+    "name": "prowebcraft/yii2-api-abstract-controller",
+    "description": "Abstract controller for easy api development",
+    "keywords": ["yii2", "api", "controller", "ajax", "json"],
+    "homepage": "https://github.com/prowebcraft/yii2-api-abstract-controller",
+    "type": "yii2-extension",
+    "license": "BSD-4-Clause",
+    "authors": [
+        {
+            "name": "Andrey Mistulov",
+            "email": "prowebcraft@gmail.com",
+            "homepage": "http://prowebcraft.ru"
+        }
+    ],
+    "require": {
+        "yiisoft/yii2": "*",
+        "php": ">=7.4.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "prowebcraft\\yii2apicontroller\\": ""
+        }
+    }
+}
