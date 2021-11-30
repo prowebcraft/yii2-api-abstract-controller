@@ -11,6 +11,7 @@ namespace prowebcraft\yii2apicontroller;
 use Yii as Yii;
 use yii\base\InvalidRouteException;
 use yii\helpers\ArrayHelper;
+use yii\helpers\Inflector;
 use yii\web\Controller;
 use yii\web\Response;
 
@@ -82,11 +83,23 @@ abstract class AbstractApiController extends Controller
             if (method_exists($this, $action->actionMethod)) {
                 $method = new \ReflectionMethod($this, $action->actionMethod);
                 foreach ($method->getParameters() as $parameter) {
-                    $val = $this->getParam($parameter->name);
-                    if (!$parameter->isOptional() && $val === null)
-                        $this->throwError('Required Param ' . $parameter->name . ' is not set', 423);
-                    if ($val !== null)
-                        $params[$parameter->name] = $val;
+                    $snakeCaseName = Inflector::camel2id($parameter->name, '_');
+                    $paramNames = array_unique([
+                        $snakeCaseName,
+                        $parameter->name
+                    ]);
+                    foreach ($paramNames as $paramName) {
+                        if (($val = $this->getParam($paramName,
+                                $parameter->isDefaultValueAvailable() ? $parameter->getDefaultValue() : null
+                            )) !== null) {
+                            $params[$parameter->name] = $val;
+                            break;
+                        }
+                    }
+                    if ($val === null && !$parameter->isOptional()) {
+                        $this->throwError('Required Param ' . $snakeCaseName . ' is not set', 423);
+                    }
+                    $params[$parameter->name] = $val;
                 }
             }
             return parent::runAction($id, $params);
@@ -119,7 +132,7 @@ abstract class AbstractApiController extends Controller
         if ($this->apiRequestParams === null) {
             $json = Yii::$app->getRequest()->getRawBody();
             $json = json_decode($json, true) ?: [];
-            $this->apiRequestParams = array_merge($json, Yii::$app->getRequest()->post());
+            $this->apiRequestParams = array_merge($json, Yii::$app->getRequest()->post(), Yii::$app->getRequest()->get());
         }
 
         return $this->apiRequestParams;
