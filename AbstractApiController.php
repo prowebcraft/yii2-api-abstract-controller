@@ -25,6 +25,11 @@ abstract class AbstractApiController extends Controller
     protected $logRequest = true;
     protected $logCategory = 'api';
 
+    /** @var bool Allow CORS Requests */
+    protected bool $allowCors = false;
+    /** @var bool Allow CORS Requests in Dev environment */
+    protected bool $allowCorsInDev = false;
+
     /**
      * Request bootstrap & validation
      * @param $action
@@ -34,6 +39,14 @@ abstract class AbstractApiController extends Controller
      */
     public function beforeAction($action)
     {
+        if ($this->allowCors || ($this->allowCorsInDev && YII_ENV === 'dev')) {
+            header('Access-Control-Allow-Origin: *', true);
+            header('Access-Control-Allow-Headers: *', true);
+        }
+        if (\Yii::$app->getRequest()->isOptions) {
+            exit(); // this is preflight OPTIONS request
+        }
+
         $path = \Yii::$app->getRequest()->getPathInfo();
         if ($this->logRequest) {
             $logParams = $this->getRequestParamsForLog();
