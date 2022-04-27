@@ -21,8 +21,28 @@ abstract class AbstractApiController extends Controller
     public $enableCsrfValidation = false;
     protected $apiRequestParams = null;
 
+    /**
+     * List of actions without processing validateRequest method
+     * @var array
+     */
     public $whiteListActions = [];
-    protected $logRequest = true;
+
+    /**
+     * Log incoming request data
+     * @var bool
+     */
+    protected bool $logRequest = true;
+
+    /**
+     * Log response
+     * @var bool
+     */
+    protected bool $logResponse = true;
+
+    /**
+     * Category for logging
+     * @var string
+     */
     protected $logCategory = 'api';
 
     /** @var bool Allow CORS Requests */
@@ -251,9 +271,18 @@ abstract class AbstractApiController extends Controller
      * Log Error
      * @param bool $final
      * Is temporary or final error
+     * @param int|null $responseCode
+     * Set server response code
+     * @throws \yii\base\InvalidConfigException
      */
-    public function throwError(string $error, $code = 0, $extraData = [], $log = true, $final = true)
-    {
+    public function throwError(
+        string $error,
+        int $code = 0,
+        array $extraData = [],
+        bool $log = true,
+        bool $final = true,
+        ?int $responseCode = 500
+    ) {
         if ($log) {
             $params = property_exists($this, 'apiRequestParams') ? $this->apiRequestParams : Yii::$app->request->params;
             $msg = sprintf("Api Request Error:\n" .
@@ -264,6 +293,9 @@ abstract class AbstractApiController extends Controller
                 $error, json_encode($params)
             );
             Yii::error($msg, 'api');
+        }
+        if ($responseCode) {
+            http_response_code($code);
         }
         $this->finishAjaxAction(array_merge([
             'success' => false,
