@@ -59,14 +59,6 @@ abstract class AbstractApiController extends Controller
      */
     public function beforeAction($action)
     {
-        if ($this->allowCors || ($this->allowCorsInDev && YII_ENV === 'dev')) {
-            header('Access-Control-Allow-Origin: *', true);
-            header('Access-Control-Allow-Headers: *', true);
-        }
-        if (\Yii::$app->getRequest()->isOptions) {
-            exit(); // this is preflight OPTIONS request
-        }
-
         $path = \Yii::$app->getRequest()->getPathInfo();
         if ($this->logRequest) {
             $logParams = $this->getRequestParamsForLog();
@@ -108,6 +100,13 @@ abstract class AbstractApiController extends Controller
      */
     public function runAction($id, $params = [])
     {
+        if ($this->allowCors || ($this->allowCorsInDev && YII_ENV === 'dev')) {
+            header('Access-Control-Allow-Origin: *', true);
+            header('Access-Control-Allow-Headers: *', true);
+        }
+        if (\Yii::$app->getRequest()->isOptions) {
+            exit(); // this is preflight OPTIONS request
+        }
         $res = $this->wrap(function () use ($id, $params) {
             $action = $this->createAction($id);
             if ($action === null) {
