@@ -295,7 +295,7 @@ abstract class AbstractApiController extends Controller
             Yii::error($msg, 'api');
         }
         if ($responseCode) {
-            http_response_code($code);
+            http_response_code($responseCode);
         }
         $this->finishAjaxAction(array_merge([
             'success' => false,
