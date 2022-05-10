@@ -101,8 +101,17 @@ abstract class AbstractApiController extends Controller
     public function runAction($id, $params = [])
     {
         if ($this->allowCors || ($this->allowCorsInDev && YII_ENV === 'dev')) {
-            header('Access-Control-Allow-Origin: *', true);
-            header('Access-Control-Allow-Headers: *', true);
+            if (YII_DEBUG && isset($_SERVER['HTTP_ORIGIN'])) {
+                header("Access-Control-Allow-Origin: {$_SERVER['HTTP_ORIGIN']}", true);
+                header('Access-Control-Allow-Credentials: true', true);
+                header('Access-Control-Allow-Headers: Authorization,Accept,Origin,DNT,X-CustomHeader,' .
+                    'Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,' .
+                    'Content-Range,Range,SPA,withcredentials,auth,x-appic-session,x-appic-shop', true
+                );
+            } else {
+                header('Access-Control-Allow-Origin: *', true);
+                header('Access-Control-Allow-Headers: *', true);
+            }
         }
         if (\Yii::$app->getRequest()->isOptions) {
             exit(); // this is preflight OPTIONS request
