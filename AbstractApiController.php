@@ -106,7 +106,7 @@ abstract class AbstractApiController extends Controller
                 header('Access-Control-Allow-Credentials: true', true);
                 header('Access-Control-Allow-Headers: Authorization,Accept,Origin,DNT,X-CustomHeader,' .
                     'Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,' .
-                    'Content-Range,Range,SPA,withcredentials,auth,x-appic-session,x-appic-shop', true
+                    'Content-Range,Range,SPA,withcredentials,auth,sentry-trace,x-appic-session,x-appic-shop', true
                 );
             } else {
                 header('Access-Control-Allow-Origin: *', true);
