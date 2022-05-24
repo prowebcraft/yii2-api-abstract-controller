@@ -235,36 +235,44 @@ abstract class AbstractApiController extends Controller
      * @param array $options
      * @return array
      */
-    public function wrap(callable $action, $options = [])
+    public function wrap(callable $action, array $options = [])
     {
         $options = array_merge([
-            'mask_exceptions' => false,
+            'mask_exceptions' => !YII_DEBUG,
             'exceptionHandles' => [],
             'log_handled' => true,
             'log_unhandled' => true,
             'trace_exceptions' => false
         ], $options);
-        $logHandled = $options['log_handled'];
-        $logUnhandled = $options['log_handled'];
         try {
             $result = $action();
             if (!$result) {
                 $result = [];
             }
+
+            return $result;
         } catch (ApiException $e) {
-            $result = [
-                'error' => $e->getMessage(),
-                'code' => $e->getCode()
-            ];
-            if ($logHandled) {
-                Yii::error($e->getMessage(), 'ajax');
+            $this->throwError($e->getMessage(), $e->getCode(), [], $options['log_handled']);
+        } catch (\Throwable $e) {
+            $message = $e->getMessage();
+            $extra = [];
+            if ($options['mask_exceptions']) {
+                $message = 'Request Error';
+                if ($options['exceptionHandles']) {
+                    foreach ($options['exceptionHandles'] as $handledCode => $handledMessage) {
+                        if ($e->getCode() === $handledCode) {
+                            $message = $handledMessage;
+                        }
+                    }
+                }
+            } else {
+                $extra['type'] = get_class($e);
+                if (YII_DEBUG) {
+                    $extra['trace'] = $e->getTraceAsString();
+                }
             }
-        } catch (\Error $e) {
-            $result = $this->handleException($e, $options);
-        } catch (\ErrorException $e) {
-            $result = $this->handleException($e, $options);
+            $this->throwError($message, $e->getCode(), $extra, $options['log_unhandled']);
         }
-        return $result;
     }
 
     /**
@@ -281,7 +289,9 @@ abstract class AbstractApiController extends Controller
      * Is temporary or final error
      * @param int|null $responseCode
      * Set server response code
-     * @throws \yii\base\InvalidConfigException
+     * @noinspection JsonEncodingApiUsageInspection
+     * @noinspection ReturnTypeCanBeDeclaredInspection
+     * @noinspection PhpUnhandledExceptionInspection
      */
     public function throwError(
         string $error,
@@ -293,14 +303,17 @@ abstract class AbstractApiController extends Controller
     ) {
         if ($log) {
             $params = property_exists($this, 'apiRequestParams') ? $this->apiRequestParams : Yii::$app->request->params;
-            $msg = sprintf("Api Request Error:\n" .
-                "Path: %s\n" .
-                "Error: %s\n" .
-                "Request: %s",
+            $msg = sprintf("<b>Api Request Error:</b> %s\n" .
+                "<b>Path:</b> <code>%s</code>\n" .
+                "<b>Request:</b> <code>%s</code>",
+                $error,
                 Yii::$app->getRequest()->getPathInfo(),
-                $error, json_encode($params)
+                json_encode($params, JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE)
             );
-            Yii::error($msg, 'api');
+            if (!empty($extraData)) {
+                $msg .= "\nExtra: <code>" . json_encode($extraData, JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE).'</code>';
+            }
+            Yii::error($msg, $this->logCategory);
         }
         if ($responseCode) {
             http_response_code($responseCode);
@@ -342,49 +355,6 @@ abstract class AbstractApiController extends Controller
         $response = json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
         echo $response;
         exit();
-    }
-
-    /**
-     * Handle exception
-     * @param array $options
-     * @param \Exception|\Error $e
-     * @return array
-     */
-    protected function handleException($e, $options = [])
-    {
-        if ($options['mask_exceptions']) {
-            $message = 'Request Error';
-            if ($options['exceptionHandles']) {
-                foreach ($options['exceptionHandles'] as $handledCode => $handledMessage) {
-                    if ($e->getCode() == $handledCode) {
-                        $message = $handledMessage;
-                    }
-                }
-            }
-            $result = [
-                'success' => false,
-                'error' => $message,
-                'code' => $e->getCode()
-            ];
-        } else {
-            $result = [
-                'success' => false,
-                'error' => $e->getMessage(),
-                'code' => $e->getCode(),
-                'type' => get_class($e)
-            ];
-            if (YII_DEBUG) {
-                $result['trace'] = $e->getTraceAsString();
-            }
-        }
-        if ($options['log_unhandled']) {
-            $error = $e->getMessage();
-            if ($options['trace_exceptions']) {
-                $error .= "\nTrace: {$e->getTraceAsString()}";
-            }
-            Yii::error($error, 'ajax');
-        }
-        return $result;
     }
 
 }
