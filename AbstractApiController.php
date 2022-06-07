@@ -271,7 +271,16 @@ abstract class AbstractApiController extends Controller
                     $extra['trace'] = $e->getTraceAsString();
                 }
             }
-            $this->throwError($message, $e->getCode(), $extra, $options['log_unhandled']);
+            Yii::error(sprintf("<b>Api Request Error:</b> %s\n" .
+                "<b>Path:</b> <code>%s</code>\n" .
+                "<b>Type:</b> %s\n" .
+                "<b>Trace:</b> <code>%s</code>\n",
+                $e->getMessage(),
+                $_SERVER['REQUEST_URI'] ?? '?',
+                get_class($e),
+                $e->getTraceAsString()
+            ), $this->logCategory);
+            $this->throwError($message, $e->getCode(), $extra, false);
         }
     }
 
