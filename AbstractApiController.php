@@ -9,6 +9,7 @@
 namespace prowebcraft\yii2apicontroller;
 
 use Yii as Yii;
+use yii\base\InlineAction;
 use yii\base\InvalidRouteException;
 use yii\helpers\ArrayHelper;
 use yii\helpers\Inflector;
@@ -52,7 +53,7 @@ abstract class AbstractApiController extends Controller
 
     /**
      * Request bootstrap & validation
-     * @param $action
+     * @param InlineAction $action
      * @return mixed
      * @throws \yii\base\InvalidConfigException
      * @throws \yii\web\BadRequestHttpException
@@ -70,6 +71,27 @@ abstract class AbstractApiController extends Controller
         if (!(is_array($this->whiteListActions)
                 && in_array($action->actionMethod, $this->whiteListActions)) && !$this->validateRequest()) {
             $this->throwError('Invalid Validation Data', 401);
+        }
+
+        $method = new \ReflectionMethod($this, $action->actionMethod);
+        foreach ($method->getParameters() as $parameter) {
+            $snakeCaseName = Inflector::camel2id($parameter->name, '_');
+            $paramNames = array_unique([
+                $snakeCaseName,
+                $parameter->name
+            ]);
+            foreach ($paramNames as $paramName) {
+                if (($val = $this->getParam($paramName,
+                        $parameter->isDefaultValueAvailable() ? $parameter->getDefaultValue() : null
+                    )) !== null) {
+                    $params[$parameter->name] = $val;
+                    break;
+                }
+            }
+            if ($val === null && !$parameter->isOptional()) {
+                $this->throwError('Required Param ' . $snakeCaseName . ' is not set', 423);
+            }
+            $params[$parameter->name] = $val;
         }
 
         return parent::beforeAction($action);
@@ -120,28 +142,6 @@ abstract class AbstractApiController extends Controller
             $action = $this->createAction($id);
             if ($action === null) {
                 throw new InvalidRouteException('Unable to resolve the request: ' . $this->getUniqueId() . '/' . $id);
-            }
-            if (method_exists($this, $action->actionMethod)) {
-                $method = new \ReflectionMethod($this, $action->actionMethod);
-                foreach ($method->getParameters() as $parameter) {
-                    $snakeCaseName = Inflector::camel2id($parameter->name, '_');
-                    $paramNames = array_unique([
-                        $snakeCaseName,
-                        $parameter->name
-                    ]);
-                    foreach ($paramNames as $paramName) {
-                        if (($val = $this->getParam($paramName,
-                                $parameter->isDefaultValueAvailable() ? $parameter->getDefaultValue() : null
-                            )) !== null) {
-                            $params[$parameter->name] = $val;
-                            break;
-                        }
-                    }
-                    if ($val === null && !$parameter->isOptional()) {
-                        $this->throwError('Required Param ' . $snakeCaseName . ' is not set', 423);
-                    }
-                    $params[$parameter->name] = $val;
-                }
             }
             return parent::runAction($id, $params);
         });
