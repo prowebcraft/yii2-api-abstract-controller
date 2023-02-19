@@ -11,6 +11,7 @@ namespace prowebcraft\yii2apicontroller;
 use Yii as Yii;
 use yii\base\InlineAction;
 use yii\base\InvalidRouteException;
+use yii\base\Module;
 use yii\helpers\ArrayHelper;
 use yii\helpers\Inflector;
 use yii\web\Controller;
@@ -50,6 +51,8 @@ abstract class AbstractApiController extends Controller
     protected bool $allowCors = false;
     /** @var bool Allow CORS Requests in Dev environment */
     protected bool $allowCorsInDev = false;
+
+    protected array $requestParams = [];
 
     /**
      * Request bootstrap & validation
@@ -91,7 +94,7 @@ abstract class AbstractApiController extends Controller
             if ($val === null && !$parameter->isOptional()) {
                 $this->throwError('Required Param ' . $snakeCaseName . ' is not set', 423);
             }
-            $params[$parameter->name] = $val;
+            $this->requestParams[$parameter->name] = $val;
         }
 
         return parent::beforeAction($action);
@@ -138,12 +141,59 @@ abstract class AbstractApiController extends Controller
         if (\Yii::$app->getRequest()->isOptions) {
             exit(); // this is preflight OPTIONS request
         }
-        $res = $this->wrap(function () use ($id, $params) {
+        $this->requestParams = $params;
+        $res = $this->wrap(function () use ($id) {
             $action = $this->createAction($id);
             if ($action === null) {
                 throw new InvalidRouteException('Unable to resolve the request: ' . $this->getUniqueId() . '/' . $id);
             }
-            return parent::runAction($id, $params);
+            $action = $this->createAction($id);
+            if ($action === null) {
+                throw new InvalidRouteException('Unable to resolve the request: ' . $this->getUniqueId() . '/' . $id);
+            }
+
+            Yii::debug('Route to run: ' . $action->getUniqueId(), __METHOD__);
+
+            if (Yii::$app->requestedAction === null) {
+                Yii::$app->requestedAction = $action;
+            }
+
+            $oldAction = $this->action;
+            $this->action = $action;
+
+            $modules = [];
+            $runAction = true;
+
+            // call beforeAction on modules
+            foreach ($this->getModules() as $module) {
+                if ($module->beforeAction($action)) {
+                    array_unshift($modules, $module);
+                } else {
+                    $runAction = false;
+                    break;
+                }
+            }
+
+            $result = null;
+
+            if ($runAction && $this->beforeAction($action)) {
+                // run the action
+                $result = $action->runWithParams($this->requestParams);
+
+                $result = $this->afterAction($action, $result);
+
+                // call afterAction on modules
+                foreach ($modules as $module) {
+                    /* @var $module Module */
+                    $result = $module->afterAction($action, $result);
+                }
+            }
+
+            if ($oldAction !== null) {
+                $this->action = $oldAction;
+            }
+
+            return $result;
         });
         $this->finishAjaxAction($res);
     }
